@@ -3,13 +3,22 @@
 // Nuevas variables para el temporizador por pregunta
 let questionTimer = null;
 let currentQuestionTimeLeft = 0;
+let streak = 0; // aciertos seguidos (efecto visual)
 
 
 function startContest(mode) {
     gameMode = mode;
     score = 0;
     errors = 0;
-    totalTimeElapsed = 0; 
+    totalTimeElapsed = 0;
+    startTime = Date.now();
+    streak = 0;
+    updateStreak(0);
+    updatePlayerChip();
+    // En modo docente la práctica libre se termina (y se guarda) con este botón
+    mainMenuButton.textContent = (isTeacherMode() && currentStudent && mode === 'free')
+        ? '✅ Terminar y guardar'
+        : 'Volver al Menú Principal';
     
     rightInfoDisplay.classList.remove('time-warning');
     rightInfoDisplay.style.display = 'inline'; 
@@ -83,8 +92,12 @@ function handleAnswer(event) {
 
     if (selectedAnswer === correctAnswer) {
         score++;
-        playSound(aciertoSound); 
+        streak++;
+        playSound(aciertoSound);
         updateFeedback('¡Correcto!', true);
+        floatText('+1', selectedButton);
+        updateStreak(streak);
+        restartAnimation(scoreDisplay, 'score-bump');
         
         if (gameMode === 'chrono' || gameMode === 'sudden_death') {
             // --- INICIO DE LA MODIFICACIÓN ---
@@ -104,8 +117,11 @@ function handleAnswer(event) {
 
     } else {
         errors++;
+        streak = 0;
         playSound(errorSound);
-        updateFeedback('Incorrecto.', false); 
+        updateFeedback('Incorrecto.', false);
+        updateStreak(0);
+        restartAnimation(document.getElementById('options-container'), 'shake');
         const correctBtn = optionButtons.find(btn => parseInt(btn.value) === correctAnswer);
         if (correctBtn) correctBtn.classList.add('correct-answer');
         
@@ -183,10 +199,12 @@ function generateNewQuestion() {
     allOptions.sort(() => Math.random() - 0.5);
 
     numberToRoundEl.textContent = `${num1} x ${num2}`;
+    restartAnimation(numberToRoundEl, 'q-pop');
 
     optionButtons.forEach((button, index) => {
         button.textContent = allOptions[index];
         button.value = allOptions[index];
+        restartAnimation(button, 'opt-flip');
     });
 }
 
@@ -204,29 +222,46 @@ function endGame(isSuddenDeathError = false) {
         autoAdvanceTimeout = null;
     }
     
+    // En práctica libre se suma el tiempo de la pregunta en curso
+    if (gameMode === 'free' && freeModeTimerInterval && freeModeTimerStartTime > 0) {
+        totalTimeElapsed += (Date.now() - freeModeTimerStartTime) / 1000;
+    }
     stopFreeModeTimer();
     stopQuestionTimer(); // Detiene el temporizador de pregunta
     stopBGM();
     if (isMusicOn) playBGM('fin.mp3');
-    
+
     resetOptionStyles();
-    
-    if (gameMode !== 'free') {
+    updateStreak(0);
+
+    const finalTime = (gameMode === 'chrono') ? initialTime
+                    : (gameMode === 'free') ? totalTimeElapsed
+                    : (Date.now() - startTime) / 1000;
+
+    // Modo docente: se registra la partida del alumno en Supabase (sin ranking local)
+    let teacherResultPromise = null;
+    if (isTeacherMode() && currentStudent) {
+        teacherResultPromise = recordTeacherGame({ mode: gameMode, score, errors, duration: finalTime });
+    } else if (gameMode !== 'free') {
         saveScore(playerName, score, gameMode);
     }
-    
+
     setTimeout(() => {
         gameContainer.classList.add('game-content-hidden');
-        
-        const finalTime = (gameMode === 'chrono') ? initialTime : (Date.now() - startTime) / 1000;
-        displayRanking(playerName, score, gameMode); 
-        
+
+        if (teacherResultPromise) {
+            showTeacherResult(teacherResultPromise);
+        } else {
+            hideTeacherResult();
+            displayRanking(playerName, score, gameMode);
+        }
+
         endGameTitle.textContent = isSuddenDeathError ? '¡Has Fallado!' : 'Fin de la Partida';
         summaryTotalEl.textContent = finalTime.toFixed(2) + 's';
         summaryCorrectEl.textContent = score;
         summaryIncorrectEl.textContent = errors;
-        summaryApsEl.textContent = (score / finalTime).toFixed(2);
-        
+        summaryApsEl.textContent = finalTime > 0 ? (score / finalTime).toFixed(2) : '0.00';
+
         rankingModal.style.display = 'flex';
     },  500);
 }

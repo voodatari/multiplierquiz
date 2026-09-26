@@ -4,7 +4,10 @@ function showModeSelection(isInitialLoad) {
     resetGameStats();
     playerNameInput.value = '';
     playerName = '';
-    
+    currentStudent = null;
+    closeTeacherOverlays();
+    refreshTeacherBar();
+
     gameContainer.classList.add('game-content-hidden'); 
     gameTitleEl.textContent = 'Práctica de Tablas de Multiplicar'; 
 
@@ -44,7 +47,9 @@ function showTimeSelection(mode) {
         <button class="mode-button time-button" data-time="30">30 Segundos</button>
         <button class="mode-button time-button" data-time="20">20 Segundos</button>
         <button class="mode-button time-button" data-time="10">10 Segundos</button>
+        <button class="chip-button ghost-dark back-button">← Volver</button>
     `;
+    addTimeSelectionBackButton();
 
     // Reasignar listeners para los botones de Contrarreloj
     document.querySelectorAll('#time-selection-area .time-button').forEach(button => {
@@ -74,7 +79,9 @@ function showSuddenDeathTimeSelection() {
         <button class="mode-button time-button" data-time="10">10 segundos</button>
         <button class="mode-button time-button" data-time="5">5 segundos</button>
         <button class="mode-button time-button" data-time="3">3 segundos</button>
+        <button class="chip-button ghost-dark back-button">← Volver</button>
     `;
+    addTimeSelectionBackButton();
 
     // Reasignar listeners para los botones de Muerte Súbita
     document.querySelectorAll('#time-selection-area .time-button').forEach(button => {
@@ -87,13 +94,34 @@ function showSuddenDeathTimeSelection() {
     });
 }
 
+function addTimeSelectionBackButton() {
+    document.querySelector('#time-selection-area .back-button').addEventListener('click', () => {
+        playSound(clickSound);
+        showModeSelection(false);
+    });
+}
+
 function showPlayerNameModal(mode) {
     gameMode = mode;
     timeSelectionModal.style.display = 'none';
-    rankingModal.style.display = 'none'; 
-    
+    rankingModal.style.display = 'none';
+
+    // Modo docente: en lugar de pedir el nombre se elige al alumno
+    if (isTeacherMode()) {
+        openStudentPicker(mode);
+        return;
+    }
+
     playerNameModal.style.display = 'flex';
     playerNameInput.focus();
+}
+
+// Cuenta atrás y comienzo de la partida
+function launchGame(mode) {
+    gameMode = mode;
+    [modeSelectionModal, timeSelectionModal, playerNameModal, rankingModal].forEach(m => { m.style.display = 'none'; });
+    gameContainer.classList.add('game-content-hidden');
+    showCountdown(() => startContest(mode), countdownHeaderHTML());
 }
 
 function updateFeedback(message, isCorrect) {
