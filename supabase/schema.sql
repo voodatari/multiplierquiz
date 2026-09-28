@@ -1,7 +1,9 @@
 -- =====================================================================
---  MULTIPLICADOR · Esquema de base de datos para el modo docente
+--  MULTIPLICADOR y REDONDEADOR · Esquema de base de datos para el modo docente
+--  Los dos juegos comparten el mismo proyecto de Supabase: cuenta docente, clases
+--  y alumnos son comunes; las sesiones y partidas llevan la columna "game".
 --  Ejecuta este script completo en Supabase → SQL Editor → New query → Run
---  (se puede ejecutar varias veces sin problemas)
+--  (se puede ejecutar varias veces sin problemas y no borra datos)
 -- =====================================================================
 
 -- ---------- TABLAS ----------
@@ -26,20 +28,23 @@ create table if not exists public.students (
     created_at  timestamptz not null default now()
 );
 
--- Sesiones de juego (una clase / un día de práctica)
+-- Sesiones de juego (una clase / un día de práctica de un juego)
 create table if not exists public.sessions (
     id          uuid primary key default gen_random_uuid(),
+    game        text not null default 'multiplicador',
     teacher_id  uuid not null default auth.uid() references auth.users(id) on delete cascade,
     class_id    uuid not null references public.classes(id) on delete cascade,
     started_at  timestamptz not null default now()
 );
 
 -- Partidas jugadas
+--   game     : 'multiplicador' o 'redondeo'
 --   mode     : 'chrono' (contrarreloj), 'sudden_death' (muerte súbita), 'free' (práctica libre)
 --   setting  : chrono → segundos totales; sudden_death → segundos por pregunta (NULL = infinito); free → NULL
 --   score    : aciertos
 create table if not exists public.games (
     id               uuid primary key default gen_random_uuid(),
+    game             text not null default 'multiplicador',
     teacher_id       uuid not null default auth.uid() references auth.users(id) on delete cascade,
     class_id         uuid not null references public.classes(id) on delete cascade,
     student_id       uuid not null references public.students(id) on delete cascade,
@@ -52,14 +57,23 @@ create table if not exists public.games (
     played_at        timestamptz not null default now()
 );
 
+-- Columna "game" en bases de datos creadas antes de compartirse entre juegos
+-- (las partidas y sesiones que ya existían quedan como del Multiplicador)
+alter table public.sessions add column if not exists game text not null default 'multiplicador';
+alter table public.games    add column if not exists game text not null default 'multiplicador';
+
 -- ---------- ÍNDICES ----------
-create index if not exists classes_teacher_idx   on public.classes (teacher_id);
-create index if not exists students_class_idx    on public.students (class_id, position);
-create index if not exists sessions_class_idx    on public.sessions (class_id, started_at desc);
-create index if not exists games_class_mode_idx  on public.games (class_id, mode, setting);
-create index if not exists games_session_idx     on public.games (session_id);
-create index if not exists games_student_idx     on public.games (student_id, mode, setting, score desc);
-create index if not exists games_played_idx      on public.games (class_id, played_at desc);
+drop index if exists public.sessions_class_idx;
+drop index if exists public.games_class_mode_idx;
+drop index if exists public.games_student_idx;
+drop index if exists public.games_played_idx;
+create index if not exists classes_teacher_idx       on public.classes (teacher_id);
+create index if not exists students_class_idx        on public.students (class_id, position);
+create index if not exists sessions_class_game_idx   on public.sessions (class_id, game, started_at desc);
+create index if not exists games_class_game_mode_idx on public.games (class_id, game, mode, setting);
+create index if not exists games_session_idx         on public.games (session_id);
+create index if not exists games_student_game_idx    on public.games (student_id, game, mode, setting, score desc);
+create index if not exists games_class_played_idx    on public.games (class_id, game, played_at desc);
 
 -- ---------- SEGURIDAD (Row Level Security) ----------
 -- Cada docente solo puede ver y modificar sus propios datos.
@@ -106,16 +120,19 @@ grant usage on schema public to authenticated;
 grant select, insert, update, delete on public.classes, public.students, public.sessions, public.games to authenticated;
 
 -- ---------- RANKING ----------
--- Mejor puntuación de cada alumno de una clase para un modo.
+-- Mejor puntuación de cada alumno de una clase para un juego y un modo.
 --   p_any_setting = true  → mezcla todas las configuraciones de tiempo
 --   p_any_setting = false → solo la configuración p_setting (NULL = infinito)
 --   p_session_id  = NULL  → ranking total de la clase; si no, solo esa sesión
+--   p_game        = juego ('multiplicador' por defecto, para versiones antiguas del juego)
+drop function if exists public.class_ranking(uuid, text, integer, boolean, uuid);
 create or replace function public.class_ranking(
     p_class_id    uuid,
     p_mode        text,
     p_setting     integer default null,
     p_any_setting boolean default true,
-    p_session_id  uuid    default null
+    p_session_id  uuid    default null,
+    p_game        text    default 'multiplicador'
 )
 returns table (
     student_id  uuid,
@@ -138,6 +155,7 @@ as $$
            max(g.played_at)                                                  as last_played
     from public.games g
     where g.class_id = p_class_id
+      and g.game = p_game
       and g.mode = p_mode
       and (p_session_id is null or g.session_id = p_session_id)
       and (p_any_setting or g.setting is not distinct from p_setting)
@@ -145,5 +163,5 @@ as $$
     order by 2 desc, 5 asc;
 $$;
 
-revoke execute on function public.class_ranking(uuid, text, integer, boolean, uuid) from public, anon;
-grant execute on function public.class_ranking(uuid, text, integer, boolean, uuid) to authenticated;
+revoke execute on function public.class_ranking(uuid, text, integer, boolean, uuid, text) from public, anon;
+grant execute on function public.class_ranking(uuid, text, integer, boolean, uuid, text) to authenticated;

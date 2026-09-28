@@ -159,14 +159,14 @@ async function loadStoredSession() {
     activeSession = null;
     const storedId = lsGet(`mq_session_${activeClassId}`);
     if (!storedId) return null;
-    const { data } = await sb.from('sessions').select('id, started_at').eq('id', storedId).maybeSingle();
+    const { data } = await sb.from('sessions').select('id, started_at').eq('id', storedId).eq('game', GAME_ID).maybeSingle();
     if (data && isSameDay(data.started_at)) activeSession = data;
     return activeSession;
 }
 
 async function ensureActiveSession(forceNew = false) {
     if (!forceNew && activeSession && isSameDay(activeSession.started_at)) return activeSession;
-    const { data, error } = await sb.from('sessions').insert({ class_id: activeClassId }).select('id, started_at').single();
+    const { data, error } = await sb.from('sessions').insert({ class_id: activeClassId, game: GAME_ID }).select('id, started_at').single();
     if (error) throw error;
     activeSession = data;
     lsSet(`mq_session_${activeClassId}`, data.id);
@@ -175,7 +175,7 @@ async function ensureActiveSession(forceNew = false) {
 
 async function fetchSessions(classId) {
     const { data, error } = await sb.from('sessions').select('id, started_at')
-        .eq('class_id', classId).order('started_at', { ascending: false }).limit(40);
+        .eq('class_id', classId).eq('game', GAME_ID).order('started_at', { ascending: false }).limit(40);
     if (error) throw error;
     return data || [];
 }
@@ -183,7 +183,7 @@ async function fetchSessions(classId) {
 // --- PARTIDAS ---
 
 async function fetchPersonalBest(game) {
-    let query = sb.from('games').select('score').eq('student_id', game.student_id).eq('mode', game.mode);
+    let query = sb.from('games').select('score').eq('student_id', game.student_id).eq('game', GAME_ID).eq('mode', game.mode);
     query = game.setting == null ? query.is('setting', null) : query.eq('setting', game.setting);
     const { data, error } = await query.order('score', { ascending: false }).limit(1);
     if (error) throw error;
@@ -199,14 +199,14 @@ async function saveGameResult(game) {
         const session = await ensureActiveSession();
         result.sessionId = session.id;
         result.prevBest = await fetchPersonalBest(game);
-        const { error } = await sb.from('games').insert({ ...game, class_id: classId, session_id: session.id });
+        const { error } = await sb.from('games').insert({ ...game, game: GAME_ID, class_id: classId, session_id: session.id });
         if (error) throw error;
         result.saved = true;
         result.ranking = await fetchRanking({ mode: game.mode, setting: game.setting, anySetting: false, sessionId: session.id });
     } catch (err) {
         console.error('Error guardando la partida:', err);
         if (!result.saved) {
-            queuePendingGame({ ...game, class_id: classId, session_id: result.sessionId || (activeSession && activeSession.id) || null });
+            queuePendingGame({ ...game, game: GAME_ID, class_id: classId, session_id: result.sessionId || (activeSession && activeSession.id) || null });
             result.queued = true;
         }
     }
@@ -245,7 +245,8 @@ async function fetchRanking({ mode, setting = null, anySetting = true, sessionId
         p_mode: mode,
         p_setting: setting,
         p_any_setting: anySetting,
-        p_session_id: sessionId
+        p_session_id: sessionId,
+        p_game: GAME_ID
     });
     if (error) throw error;
     return data || [];
@@ -254,7 +255,8 @@ async function fetchRanking({ mode, setting = null, anySetting = true, sessionId
 async function fetchHistory({ studentId = null, offset = 0, limit = 50 }) {
     let query = sb.from('games')
         .select('id, student_id, session_id, mode, setting, score, errors, duration_seconds, played_at')
-        .eq('class_id', activeClassId);
+        .eq('class_id', activeClassId)
+        .eq('game', GAME_ID);
     if (studentId) query = query.eq('student_id', studentId);
     const { data, error } = await query.order('played_at', { ascending: false }).range(offset, offset + limit - 1);
     if (error) throw error;

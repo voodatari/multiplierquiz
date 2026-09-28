@@ -3,6 +3,14 @@
 Sin configurar nada, el juego funciona igual que siempre (modo invitado con ranking local).
 El modo docente se activa cuando rellenas `config.js` e inicias sesión con **👩‍🏫 Acceso docente**.
 
+## Proyecto compartido con el Redondeador
+
+El Redondeador usa este mismo proyecto de Supabase: misma cuenta docente, mismas clases y alumnos,
+pero partidas, sesiones y rankings separados gracias a la columna `game` (ver `GAME_ID` en
+[`config.js`](config.js)). Si tu base de datos es anterior a este cambio, vuelve a ejecutar
+[`supabase/schema.sql`](supabase/schema.sql) antes de publicar: no borra nada y las partidas que
+ya existían quedan como del Multiplicador.
+
 ## 1. Crear el proyecto en Supabase
 
 1. Entra en <https://supabase.com>, crea una cuenta gratuita y pulsa **New project**.

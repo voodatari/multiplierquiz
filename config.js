@@ -10,3 +10,8 @@ const SUPABASE_ANON_KEY = 'sb_publishable_LoT60n6ml9hmUrRyiT652Q_vErXXJbY';   //
 // Supabase Auth necesita un email: el nombre de usuario se convierte en
 // "usuario@<este dominio>". No se envía ningún correo (hay que desactivar "Confirm email").
 const AUTH_EMAIL_DOMAIN = 'multiplicador.app';
+
+
+// Identificador de este juego en la base de datos compartida (el Redondeador usa
+// el mismo proyecto de Supabase): separa sus partidas, sesiones y rankings.
+const GAME_ID = 'multiplicador';

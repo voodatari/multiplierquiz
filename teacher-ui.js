@@ -320,7 +320,7 @@ $('rename-class-button').addEventListener('click', async () => {
 $('delete-class-button').addEventListener('click', async () => {
     const cls = activeClass();
     if (!cls) return;
-    if (!confirm(`¿Borrar la clase "${cls.name}"?\n\nSe eliminarán sus alumnos, sesiones y TODAS sus partidas. No se puede deshacer.`)) return;
+    if (!confirm(`¿Borrar la clase "${cls.name}"?\n\nSe eliminarán sus alumnos, sesiones y TODAS sus partidas (también las del Multiplicador y del Redondeador). No se puede deshacer.`)) return;
     try {
         await deleteClass(cls.id);
         await changeActiveClass(teacherClasses[0] ? teacherClasses[0].id : null);
@@ -395,7 +395,7 @@ $('student-save').addEventListener('click', async () => {
 
 $('student-delete').addEventListener('click', async () => {
     if (!editingStudent) return;
-    if (!confirm(`¿Eliminar a ${editingStudent.first_name} ${editingStudent.last_name}?\nTambién se borrarán todas sus partidas.`)) return;
+    if (!confirm(`¿Eliminar a ${editingStudent.first_name} ${editingStudent.last_name}?\nTambién se borrarán todas sus partidas (en el Multiplicador y en el Redondeador).`)) return;
     try {
         await deleteStudent(editingStudent.id);
         classStudents = classStudents.filter(s => s.id !== editingStudent.id);

@@ -84,10 +84,11 @@ function handleAnswer(event) {
     }
     
     if (gameMode === 'free') {
-         if (freeModeTimerInterval) clearInterval(freeModeTimerInterval);
-         if (freeModeTimerStartTime > 0) {
+         // stopFreeModeTimer deja el intervalo a null: así endGame no vuelve a sumar este tramo
+         if (freeModeTimerInterval && freeModeTimerStartTime > 0) {
             totalTimeElapsed += (Date.now() - freeModeTimerStartTime) / 1000;
          }
+         stopFreeModeTimer();
     }
 
     if (selectedAnswer === correctAnswer) {
