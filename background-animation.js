@@ -93,8 +93,8 @@ function setupCanvas() {
             ctx.translate(this.x, this.y);
             ctx.rotate(this.currentRotation);
             
-            // Sombra constante
-            ctx.shadowBlur = 15;
+            // Sombra constante (sin ella en modo ligero: el desenfoque es lo que más cuesta)
+            ctx.shadowBlur = document.documentElement.classList.contains('ligero') ? 0 : 15;
             ctx.shadowColor = this.color.replace(')', ', 0.3)');
             ctx.shadowOffsetX = 1;
             ctx.shadowOffsetY = 1;
