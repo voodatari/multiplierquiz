@@ -11,8 +11,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="style.css?v=20260928d">
-    <script src="rendimiento.js?v=20260928d"></script>
+    <link rel="stylesheet" href="style.css?v=20261001a">
+    <script src="rendimiento.js?v=20261001a"></script>
+    <script src="escala.js?v=20261001a"></script>
 </head>
 <body>
 
@@ -49,7 +50,7 @@
 <!-- ===================== MENÚ PRINCIPAL ===================== -->
 <div id="mode-selection-modal" class="modal">
     <div id="teacher-bar">
-        <button id="perf-toggle-button" class="chip-button perf-toggle" type="button" aria-pressed="false"><span class="perf-switch" aria-hidden="true"></span>⚡ Modo ligero</button>
+        <button id="settings-button" class="chip-button settings-gear" type="button" title="Opciones" aria-label="Opciones">⚙️</button>
         <button id="teacher-login-button" class="chip-button">👩‍🏫 Acceso docente</button>
         <div id="teacher-info" style="display:none;">
             <span class="teacher-hello">👋 <strong id="teacher-name"></strong></span>
@@ -94,6 +95,30 @@
 </div>
 
 <!-- ===================== FIN DE PARTIDA ===================== -->
+<!-- Opciones (ajustes.js · rendimiento.js · escala.js) -->
+<div id="settings-modal" class="modal" style="display:none;">
+    <div class="panel panel-sm">
+        <button class="close-x" data-close="settings-modal" aria-label="Cerrar">✕</button>
+        <h2>⚙️ Opciones</h2>
+        <div class="settings-list">
+            <button id="perf-toggle-button" class="setting-row" type="button" aria-pressed="false">
+                <span class="setting-text">
+                    <strong>⚡ Modo ligero</strong>
+                    <small>Quita el desenfoque si el juego va lento.</small>
+                </span>
+                <span class="perf-switch" aria-hidden="true"></span>
+            </button>
+            <button id="scale-toggle-button" class="setting-row" type="button" aria-pressed="true">
+                <span class="setting-text">
+                    <strong>🖥️ Escala fija</strong>
+                    <small id="scale-toggle-info">Mantiene el aspecto previsto aunque Windows use una escala del 125 % o 150 %.</small>
+                </span>
+                <span class="perf-switch" aria-hidden="true"></span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <div id="ranking-modal" class="modal" style="display:none;">
     <div id="ranking-area">
         <h2 id="end-game-title">Fin de la Partida</h2>
@@ -275,18 +300,19 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js?v=20260928d"></script>
-<script src="audio.js?v=20260928d"></script>
-<script src="background-animation.js?v=20260928d"></script>
-<script src="dom-references.js?v=20260928d"></script>
-<script src="effects.js?v=20260928d"></script>
-<script src="ui-manager.js?v=20260928d"></script>
-<script src="ranking.js?v=20260928d"></script>
-<script src="teacher-data.js?v=20260928d"></script>
-<script src="pdf-import.js?v=20260928d"></script>
-<script src="teacher-ui.js?v=20260928d"></script>
-<script src="game-logic.js?v=20260928d"></script>
-<script src="main.js?v=20260928d"></script>
+<script src="config.js?v=20261001a"></script>
+<script src="audio.js?v=20261001a"></script>
+<script src="background-animation.js?v=20261001a"></script>
+<script src="ajustes.js?v=20261001a"></script>
+<script src="dom-references.js?v=20261001a"></script>
+<script src="effects.js?v=20261001a"></script>
+<script src="ui-manager.js?v=20261001a"></script>
+<script src="ranking.js?v=20261001a"></script>
+<script src="teacher-data.js?v=20261001a"></script>
+<script src="pdf-import.js?v=20261001a"></script>
+<script src="teacher-ui.js?v=20261001a"></script>
+<script src="game-logic.js?v=20261001a"></script>
+<script src="main.js?v=20261001a"></script>
 
 </body>
 </html>

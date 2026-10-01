@@ -545,15 +545,44 @@ select { cursor: pointer; }
 .teacher-hello { margin-right: 4px; }
 #teacher-info select { padding: 7px 12px; border-radius: 999px; font-weight: 600; max-width: 160px; }
 
-/* ⚡ Interruptor del modo ligero (rendimiento.js) */
-.perf-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
+/* ⚙️ Botón de opciones del menú principal */
+.settings-gear {
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    font-size: 1.3em;
     color: #fff;
     background: rgba(10, 20, 55, 0.55);
     box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.35);
+    transition: transform 0.3s, background 0.2s;
 }
+.settings-gear:hover:not(:disabled) { transform: rotate(60deg); }
+
+/* Menú de opciones (ajustes.js · rendimiento.js · escala.js) */
+.settings-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; text-align: left; }
+.setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    width: 100%;
+    padding: 12px 16px;
+    font: inherit;
+    color: var(--ink);
+    background: var(--panel-soft);
+    border: none;
+    border-radius: 16px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.2s;
+}
+.setting-row:hover { background: #e6e9fb; }
+.setting-text { display: flex; flex-direction: column; gap: 2px; }
+.setting-text small { color: var(--muted); }
+.setting-row .perf-switch { flex-shrink: 0; background: #c9cfe6; }
+.setting-row[aria-pressed="true"] .perf-switch { background: var(--success); }
+.setting-row[aria-pressed="true"] .perf-switch::after { transform: translateX(13px); }
+
 .perf-switch {
     position: relative;
     width: 30px;
@@ -573,8 +602,6 @@ select { cursor: pointer; }
     background: #fff;
     transition: transform 0.2s;
 }
-.perf-toggle[aria-pressed="true"] .perf-switch { background: #ffc233; }
-.perf-toggle[aria-pressed="true"] .perf-switch::after { transform: translateX(13px); }
 
 /* Modo ligero: fuera el desenfoque; los velos se oscurecen un poco
    para que las ventanas se sigan leyendo igual de bien */
@@ -587,7 +614,16 @@ html.ligero *::after {
 html.ligero .modal { background: rgba(6, 10, 32, 0.78); }
 html.ligero #mode-selection-modal { background: rgba(6, 10, 32, 0.2); }
 html.ligero #teacher-info,
-html.ligero .perf-toggle { background: rgba(10, 20, 55, 0.85); }
+html.ligero .settings-gear { background: rgba(10, 20, 55, 0.85); }
+
+/* Escala fija (escala.js): se amplía o reduce lo que va dentro de los velos,
+   no los velos, que siguen cubriendo toda la pantalla */
+html.escala-fija #game-container,
+html.escala-fija .modal > *,
+html.escala-fija .dialog-overlay > *,
+html.escala-fija #countdown-overlay > * {
+    zoom: var(--escala, 1);
+}
 
 @media (max-width: 900px) {
     #teacher-bar { flex-wrap: wrap; }
