@@ -33,17 +33,20 @@ function playSound(audioFile, volume = 1.0) {
 
 // --- Música de fondo con bucle sin cortes ---
 // Con <audio loop>, Chrome deja una pequeña pausa al volver al principio de un MP3
-// (no recorta el relleno que añade el codificador y el salto no es instantáneo);
-// Firefox sí lo hace bien. Para que el bucle sea perfecto en todos los navegadores,
-// la pista se decodifica con Web Audio y se repite muestra a muestra.
-// Mientras se descarga y decodifica suena como siempre (<audio loop>) y, al acabar
-// esa vuelta, entra el bucle sin cortes. Si Web Audio falla, se queda como estaba.
+// (no recorta el relleno que añade el codificador y el salto no es instantáneo).
+// Firefox lo hace perfecto, así que allí se deja el <audio loop> de siempre.
+// En los demás, la pista se decodifica con Web Audio y se repite muestra a muestra.
+// Para que ya la primera vuelta vaya sin cortes, la música espera a que la pista
+// esté lista (como mucho ESPERA_BUCLE ms). Si tarda más (conexión lenta), suena el
+// <audio> y al acabar esa vuelta entra el bucle sin cortes. Si Web Audio falla,
+// se queda con el <audio loop>.
+const ESPERA_BUCLE = 1500;
+const BUCLE_WEB_AUDIO = !/firefox/i.test(navigator.userAgent) && !!(window.AudioContext || window.webkitAudioContext);
 let audioCtx = null;
 function getAudioContext() {
+    if (!BUCLE_WEB_AUDIO) return null;
     if (!audioCtx) {
-        const Ctx = window.AudioContext || window.webkitAudioContext;
-        if (!Ctx) return null;
-        try { audioCtx = new Ctx(); } catch (e) { return null; }
+        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
     }
     return audioCtx;
 }
@@ -67,25 +70,42 @@ class BGMTrack {
         this.volume = volume;
         this.stopped = false;
         this.source = null;
+        this.decoding = false;
+        this.waitTimer = null;          // esperando a la pista decodificada para empezar sin cortes
         this.el = new Audio(this.src);
         this.el.loop = loop;
         this.el.volume = volume;
-        if (loop) this.prepareGapless();
+        if (loop && getAudioContext()) this.prepareGapless();
     }
 
     get paused() {
         if (this.stopped) return true;
+        if (this.waitTimer) return false;
         return this.source ? audioCtx.state !== 'running' : this.el.paused;
     }
 
     play() {
         this.stopped = false;
         if (this.source) return audioCtx.resume();
+        if (this.decoding) {
+            // se espera un poco a la pista decodificada; si tarda, suena el <audio>
+            if (!this.waitTimer) {
+                this.waitTimer = setTimeout(() => {
+                    this.waitTimer = null;
+                    if (!this.stopped && !this.source) {
+                        this.el.play().catch(e => console.log("Error playing BGM:", e));
+                    }
+                }, ESPERA_BUCLE);
+            }
+            return Promise.resolve();
+        }
         return this.el.play();
     }
 
     pause() {
         this.stopped = true;
+        clearTimeout(this.waitTimer);
+        this.waitTimer = null;
         this.el.pause();
         if (this.source) {
             try { this.source.stop(); } catch (e) {}
@@ -94,13 +114,22 @@ class BGMTrack {
     }
 
     prepareGapless() {
-        const ctx = getAudioContext();
-        if (!ctx) return;
+        const ctx = audioCtx;
+        this.decoding = true;
         fetch(this.src)
             .then(response => { if (!response.ok) throw new Error(response.status); return response.arrayBuffer(); })
             .then(data => ctx.decodeAudioData(data))
-            .then(buffer => { if (!this.stopped) this.switchToGapless(buffer); })
-            .catch(e => console.log("Bucle sin cortes no disponible, se usa <audio loop>:", e));
+            .then(buffer => { this.decoding = false; if (!this.stopped) this.switchToGapless(buffer); })
+            .catch(e => {
+                this.decoding = false;
+                console.log("Bucle sin cortes no disponible, se usa <audio loop>:", e);
+                // si estaba esperando, que suene ya el <audio>
+                if (this.waitTimer) {
+                    clearTimeout(this.waitTimer);
+                    this.waitTimer = null;
+                    if (!this.stopped) this.el.play().catch(() => {});
+                }
+            });
     }
 
     switchToGapless(buffer) {
@@ -117,7 +146,7 @@ class BGMTrack {
 
         const el = this.el;
         if (!el.paused && isFinite(el.duration)) {
-            // ya suena: el <audio> termina esta vuelta y el bucle sin cortes entra justo al acabar
+            // tardó en llegar y ya suena el <audio>: termina esta vuelta y el bucle entra al acabar
             ctx.resume().then(() => {
                 if (this.stopped) return;
                 el.loop = false;
@@ -127,7 +156,10 @@ class BGMTrack {
             }).catch(() => {});
             return;
         }
-        // aún no suena (el navegador bloquea el audio hasta la primera pulsación): se cambia ya
+        // lo normal: llega mientras se espera y empieza ya sin cortes desde el principio
+        // (si el navegador aún bloquea el sonido, empieza con la primera pulsación)
+        clearTimeout(this.waitTimer);
+        this.waitTimer = null;
         el.pause();
         source.start(0, loopStart);
         this.source = source;
@@ -167,6 +199,7 @@ function playBGM(file, loop = true) {
 function unlockAudio() {
     document.removeEventListener('pointerdown', unlockAudio, true);
     document.removeEventListener('keydown', unlockAudio, true);
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});   // el bucle sin cortes
     if (isMusicOn && currentBGM && currentBGM.paused) {
         currentBGM.play().catch(e => console.log("Autoplay resume error:", e));
     }
